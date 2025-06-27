@@ -1,29 +1,63 @@
-DEVELOPER INSTRUCTIONS:
-=======================
+# Immosquare DNS pour [`libdns`](https://github.com/libdns/libdns)
 
-This repo is a template for developers to use when creating new [libdns](https://github.com/libdns/libdns) provider implementations.
+[![Go Reference](https://pkg.go.dev/badge/github.com/immosquare/libdns-immosquare.svg)](https://pkg.go.dev/github.com/immosquare/libdns-immosquare)
 
-Be sure to update:
+Ce package implémente les [interfaces libdns](https://github.com/libdns/libdns) pour le service DNS immosquare, vous permettant de gérer les enregistrements DNS pour les validations ACME de Caddy.
 
-- The package name
-- The Go module name in go.mod
-- The latest `libdns/libdns` version in go.mod
-- All comments and documentation, including README below and godocs
-- License (must be compatible with Apache/MIT)
-- All "TODO:"s is in the code
-- All methods that currently do nothing
+## Configuration
 
-**Please be sure to conform to the semantics described at the [libdns godoc](https://github.com/libdns/libdns).**
+### Paramètres du Provider
 
-_Remove this section from the readme before publishing._
+- `api_token` (string, requis) : Token d'authentification pour l'API immosquare
+- `endpoint` (string, optionnel) : Endpoint de l'API DNS (par défaut: `https://immosquare.me:4005/api/dns`)
 
----
+### Exemple de configuration Caddy
 
-\<PROVIDER NAME\> for [`libdns`](https://github.com/libdns/libdns)
-=======================
+```json
+{
+  "dns": {
+    "provider": "immosquare",
+    "api_token": "votre_token_ici",
+    "endpoint": "https://immosquare.me:4005/api/dns"
+  }
+}
+```
 
-[![Go Reference](https://pkg.go.dev/badge/test.svg)](https://pkg.go.dev/github.com/libdns/TODO:PROVIDER_NAME)
+### Exemple d'utilisation avec Caddy
 
-This package implements the [libdns interfaces](https://github.com/libdns/libdns) for \<PROVIDER\>, allowing you to manage DNS records.
+```caddyfile
+example.com {
+    tls {
+        dns immosquare {
+            api_token "votre_token_ici"
+        }
+    }
+}
+```
 
-TODO: Show how to configure and use. Explain any caveats.
+## Fonctionnalités
+
+- ✅ Récupération d'enregistrements DNS (`GetRecords`)
+- ✅ Ajout d'enregistrements DNS (`AppendRecords`)
+- ✅ Mise à jour d'enregistrements DNS (`SetRecords`)
+- ✅ Suppression d'enregistrements DNS (`DeleteRecords`)
+- ✅ Support des validations ACME pour Caddy
+- ✅ Gestion automatique des timeouts et erreurs
+
+## Types d'enregistrements supportés
+
+- A
+- AAAA
+- CNAME
+- MX
+- TXT
+- NS
+- SOA
+
+## Utilisation pour les validations ACME
+
+Ce provider est particulièrement adapté pour les validations ACME de Caddy, permettant la génération automatique de certificats SSL/TLS via des enregistrements TXT `_acme-challenge`.
+
+## Licence
+
+Ce projet est sous licence Apache 2.0.

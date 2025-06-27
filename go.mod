@@ -1,4 +1,4 @@
-module github.com/libdns/template
+module github.com/immosquare/libdns-immosquare
 
 go 1.18
 
