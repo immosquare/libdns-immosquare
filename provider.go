@@ -141,6 +141,30 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 					TTL:  time.Duration(apiRecord.TTL) * time.Second,
 				}
 				records = append(records, txt)
+			case "CNAME":
+				// Pour les enregistrements CNAME
+				cname := libdns.CNAME{
+					Name:   apiRecord.Name,
+					Target: apiRecord.Value,
+					TTL:    time.Duration(apiRecord.TTL) * time.Second,
+				}
+				records = append(records, cname)
+			case "MX":
+				// Pour les enregistrements MX
+				mx := libdns.MX{
+					Name:   apiRecord.Name,
+					Target: apiRecord.Value,
+					TTL:    time.Duration(apiRecord.TTL) * time.Second,
+				}
+				records = append(records, mx)
+			case "NS":
+				// Pour les enregistrements NS
+				ns := libdns.NS{
+					Name:   apiRecord.Name,
+					Target: apiRecord.Value,
+					TTL:    time.Duration(apiRecord.TTL) * time.Second,
+				}
+				records = append(records, ns)
 			default:
 				// Pour les autres types, nous utilisons RR
 				rr := libdns.RR{
@@ -160,6 +184,9 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 	for _, apiRecord := range apiResponse.Records {
 		switch strings.ToUpper(apiRecord.Type) {
 		case "A", "AAAA":
+			// Pour les enregistrements A/AAAA, nous utilisons le type Address
+			// Note: Dans un vrai provider, vous devriez parser l'IP correctement
+			// Ici nous utilisons RR comme fallback pour la simplicité
 			rr := libdns.RR{
 				Name: apiRecord.Name,
 				Type: apiRecord.Type,
@@ -174,6 +201,27 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 				TTL:  time.Duration(apiRecord.TTL) * time.Second,
 			}
 			records = append(records, txt)
+		case "CNAME":
+			cname := libdns.CNAME{
+				Name:   apiRecord.Name,
+				Target: apiRecord.Value,
+				TTL:    time.Duration(apiRecord.TTL) * time.Second,
+			}
+			records = append(records, cname)
+		case "MX":
+			mx := libdns.MX{
+				Name:   apiRecord.Name,
+				Target: apiRecord.Value,
+				TTL:    time.Duration(apiRecord.TTL) * time.Second,
+			}
+			records = append(records, mx)
+		case "NS":
+			ns := libdns.NS{
+				Name:   apiRecord.Name,
+				Target: apiRecord.Value,
+				TTL:    time.Duration(apiRecord.TTL) * time.Second,
+			}
+			records = append(records, ns)
 		default:
 			rr := libdns.RR{
 				Name: apiRecord.Name,
@@ -186,6 +234,52 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 	}
 	
 	return records, nil
+}
+
+// convertToSpecificTypes convertit les enregistrements en types spécifiques
+func (p *Provider) convertToSpecificTypes(records []libdns.Record) []libdns.Record {
+	result := make([]libdns.Record, 0, len(records))
+	for _, record := range records {
+		rr := record.RR()
+		switch strings.ToUpper(rr.Type) {
+		case "A", "AAAA":
+			// Pour les enregistrements A/AAAA, nous utilisons le type Address
+			// Note: Dans un vrai provider, vous devriez parser l'IP correctement
+			// Ici nous utilisons RR comme fallback pour la simplicité
+			result = append(result, rr)
+		case "TXT":
+			txt := libdns.TXT{
+				Name: rr.Name,
+				Text: rr.Data,
+				TTL:  rr.TTL,
+			}
+			result = append(result, txt)
+		case "CNAME":
+			cname := libdns.CNAME{
+				Name:   rr.Name,
+				Target: rr.Data,
+				TTL:    rr.TTL,
+			}
+			result = append(result, cname)
+		case "MX":
+			mx := libdns.MX{
+				Name:   rr.Name,
+				Target: rr.Data,
+				TTL:    rr.TTL,
+			}
+			result = append(result, mx)
+		case "NS":
+			ns := libdns.NS{
+				Name:   rr.Name,
+				Target: rr.Data,
+				TTL:    rr.TTL,
+			}
+			result = append(result, ns)
+		default:
+			result = append(result, rr)
+		}
+	}
+	return result
 }
 
 // AppendRecords ajoute de nouveaux enregistrements DNS à la zone.
@@ -224,7 +318,8 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 		return nil, fmt.Errorf("erreur API lors de l'ajout: %s", resp.Status)
 	}
 	
-	return records, nil
+	// Retourner les enregistrements convertis en types spécifiques
+	return p.convertToSpecificTypes(records), nil
 }
 
 // SetRecords définit les enregistrements DNS dans la zone, en mettant à jour
@@ -264,7 +359,8 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 		return nil, fmt.Errorf("erreur API lors de la mise à jour: %s", resp.Status)
 	}
 	
-	return records, nil
+	// Retourner les enregistrements convertis en types spécifiques
+	return p.convertToSpecificTypes(records), nil
 }
 
 // DeleteRecords supprime les enregistrements DNS spécifiés de la zone.
@@ -300,7 +396,8 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 	defer resp.Body.Close()
 	
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNoContent {
-		return records, nil
+		// Retourner les enregistrements convertis en types spécifiques
+		return p.convertToSpecificTypes(records), nil
 	}
 	
 	return []libdns.Record{}, nil
