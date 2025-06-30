@@ -6,6 +6,14 @@ Ce package implémente les [interfaces libdns](https://github.com/libdns/libdns)
 
 **✅ Compatible avec libdns v1.0.0**
 
+**📦 Version actuelle : v1.0.1**
+
+## Installation
+
+```bash
+go get github.com/immosquare/libdns-immosquare@v1.0.1
+```
+
 ## Configuration
 
 ### Paramètres du Provider
@@ -34,6 +42,28 @@ example.com {
             api_token "votre_token_ici"
         }
     }
+}
+```
+
+### Exemple d'utilisation en Go
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/immosquare/libdns-immosquare"
+)
+
+func main() {
+    fmt.Printf("Version du provider: %s\n", libdnsimmosquare.Version)
+    
+    provider := &libdnsimmosquare.Provider{
+        APIToken: "your-token-here",
+        Endpoint: "https://monitoring.immosquare.com/api/dns",
+    }
+    
+    // Utiliser le provider...
 }
 ```
 
