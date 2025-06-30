@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/netip"
 	"os"
 	"time"
 	
@@ -44,10 +45,9 @@ func main() {
 
 	// Test 2: Ajouter un enregistrement TXT pour ACME challenge
 	fmt.Println("\n2. Ajout d'un enregistrement TXT pour ACME challenge...")
-	newTXTRecord := libdns.RR{
+	newTXTRecord := libdns.TXT{
 		Name: "_acme-challenge",
-		Type: "TXT",
-		Data: "test-challenge-token-12345",
+		Text: "test-challenge-token-12345",
 		TTL:  300 * time.Second,
 	}
 
@@ -65,23 +65,26 @@ func main() {
 
 	// Test 3: Utiliser SetRecords pour définir tous les enregistrements
 	fmt.Println("\n3. Test SetRecords (remplacer tous les enregistrements)...")
+	
+	// Créer des adresses IP valides
+	ip1, _ := netip.ParseAddr("192.99.250.180")
+	ip2, _ := netip.ParseAddr("192.99.250.181")
+	ip3, _ := netip.ParseAddr("192.99.250.182")
+	
 	setRecords := []libdns.Record{
-		libdns.RR{
+		libdns.Address{
 			Name: "www",
-			Type: "A",
-			Data: "192.99.250.180",
+			IP:   ip1,
 			TTL:  600 * time.Second,
 		},
-		libdns.RR{
+		libdns.Address{
 			Name: "mail",
-			Type: "A", 
-			Data: "192.99.250.181",
+			IP:   ip2,
 			TTL:  900 * time.Second,
 		},
-		libdns.RR{
+		libdns.Address{
 			Name: "api",
-			Type: "A",
-			Data: "192.99.250.182", 
+			IP:   ip3,
 			TTL:  1200 * time.Second,
 		},
 	}
@@ -101,10 +104,9 @@ func main() {
 	// Test 4: Supprimer un enregistrement
 	fmt.Println("\n4. Test DeleteRecords (supprimer un enregistrement)...")
 	deleteRecords := []libdns.Record{
-		libdns.RR{
+		libdns.Address{
 			Name: "api",
-			Type: "A",
-			Data: "192.99.250.182", 
+			IP:   ip3,
 			TTL:  1200 * time.Second,
 		},
 	}
@@ -114,6 +116,45 @@ func main() {
 		log.Printf("Erreur DeleteRecords: %v", err)
 	} else {
 		fmt.Printf("✅ %d enregistrements supprimés\n", len(deletedRecords))
+	}
+
+	// Test 5: Test avec différents types d'enregistrements
+	fmt.Println("\n5. Test avec différents types d'enregistrements...")
+	
+	// Enregistrement CNAME
+	cnameRecord := libdns.CNAME{
+		Name:   "www2",
+		Target: "www.example.com",
+		TTL:    300 * time.Second,
+	}
+	
+	// Enregistrement MX
+	mxRecord := libdns.MX{
+		Name:       "@",
+		Preference: 10,
+		Target:     "mail.example.com",
+		TTL:        600 * time.Second,
+	}
+	
+	// Enregistrement NS
+	nsRecord := libdns.NS{
+		Name:   "@",
+		Target: "ns1.example.com",
+		TTL:    86400 * time.Second,
+	}
+	
+	mixedRecords := []libdns.Record{cnameRecord, mxRecord, nsRecord}
+	
+	addedMixedRecords, err := provider.AppendRecords(ctx, zone, mixedRecords)
+	if err != nil {
+		log.Printf("Erreur AppendRecords (types mixtes): %v", err)
+	} else {
+		fmt.Printf("✅ %d enregistrements mixtes ajoutés\n", len(addedMixedRecords))
+		for i, record := range addedMixedRecords {
+			rr := record.RR()
+			fmt.Printf("  %d. %s %s %s (TTL: %s)\n", 
+				i+1, rr.Name, rr.Type, rr.Data, rr.TTL)
+		}
 	}
 
 	fmt.Println("\n=== Test terminé ===")

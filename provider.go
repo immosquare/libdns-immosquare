@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -121,60 +122,11 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 		
 		records := make([]libdns.Record, 0, len(apiRecords))
 		for _, apiRecord := range apiRecords {
-			switch strings.ToUpper(apiRecord.Type) {
-			case "A", "AAAA":
-				// Pour les enregistrements A/AAAA, nous utilisons le type Address
-				// Note: Dans un vrai provider, vous devriez parser l'IP correctement
-				// Ici nous utilisons RR comme fallback pour la simplicité
-				rr := libdns.RR{
-					Name: apiRecord.Name,
-					Type: apiRecord.Type,
-					Data: apiRecord.Value,
-					TTL:  time.Duration(apiRecord.TTL) * time.Second,
-				}
-				records = append(records, rr)
-			case "TXT":
-				// Pour les enregistrements TXT, nous utilisons le type TXT
-				txt := libdns.TXT{
-					Name: apiRecord.Name,
-					Text: apiRecord.Value,
-					TTL:  time.Duration(apiRecord.TTL) * time.Second,
-				}
-				records = append(records, txt)
-			case "CNAME":
-				// Pour les enregistrements CNAME
-				cname := libdns.CNAME{
-					Name:   apiRecord.Name,
-					Target: apiRecord.Value,
-					TTL:    time.Duration(apiRecord.TTL) * time.Second,
-				}
-				records = append(records, cname)
-			case "MX":
-				// Pour les enregistrements MX
-				mx := libdns.MX{
-					Name:   apiRecord.Name,
-					Target: apiRecord.Value,
-					TTL:    time.Duration(apiRecord.TTL) * time.Second,
-				}
-				records = append(records, mx)
-			case "NS":
-				// Pour les enregistrements NS
-				ns := libdns.NS{
-					Name:   apiRecord.Name,
-					Target: apiRecord.Value,
-					TTL:    time.Duration(apiRecord.TTL) * time.Second,
-				}
-				records = append(records, ns)
-			default:
-				// Pour les autres types, nous utilisons RR
-				rr := libdns.RR{
-					Name: apiRecord.Name,
-					Type: apiRecord.Type,
-					Data: apiRecord.Value,
-					TTL:  time.Duration(apiRecord.TTL) * time.Second,
-				}
-				records = append(records, rr)
+			record, err := p.convertAPIRecordToLibDNS(apiRecord)
+			if err != nil {
+				return nil, fmt.Errorf("erreur de conversion d'enregistrement: %w", err)
 			}
+			records = append(records, record)
 		}
 		return records, nil
 	}
@@ -182,58 +134,107 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 	// Utiliser la réponse avec le champ records
 	records := make([]libdns.Record, 0, len(apiResponse.Records))
 	for _, apiRecord := range apiResponse.Records {
-		switch strings.ToUpper(apiRecord.Type) {
-		case "A", "AAAA":
-			// Pour les enregistrements A/AAAA, nous utilisons le type Address
-			// Note: Dans un vrai provider, vous devriez parser l'IP correctement
-			// Ici nous utilisons RR comme fallback pour la simplicité
-			rr := libdns.RR{
-				Name: apiRecord.Name,
-				Type: apiRecord.Type,
-				Data: apiRecord.Value,
-				TTL:  time.Duration(apiRecord.TTL) * time.Second,
-			}
-			records = append(records, rr)
-		case "TXT":
-			txt := libdns.TXT{
-				Name: apiRecord.Name,
-				Text: apiRecord.Value,
-				TTL:  time.Duration(apiRecord.TTL) * time.Second,
-			}
-			records = append(records, txt)
-		case "CNAME":
-			cname := libdns.CNAME{
-				Name:   apiRecord.Name,
-				Target: apiRecord.Value,
-				TTL:    time.Duration(apiRecord.TTL) * time.Second,
-			}
-			records = append(records, cname)
-		case "MX":
-			mx := libdns.MX{
-				Name:   apiRecord.Name,
-				Target: apiRecord.Value,
-				TTL:    time.Duration(apiRecord.TTL) * time.Second,
-			}
-			records = append(records, mx)
-		case "NS":
-			ns := libdns.NS{
-				Name:   apiRecord.Name,
-				Target: apiRecord.Value,
-				TTL:    time.Duration(apiRecord.TTL) * time.Second,
-			}
-			records = append(records, ns)
-		default:
-			rr := libdns.RR{
-				Name: apiRecord.Name,
-				Type: apiRecord.Type,
-				Data: apiRecord.Value,
-				TTL:  time.Duration(apiRecord.TTL) * time.Second,
-			}
-			records = append(records, rr)
+		record, err := p.convertAPIRecordToLibDNS(apiRecord)
+		if err != nil {
+			return nil, fmt.Errorf("erreur de conversion d'enregistrement: %w", err)
 		}
+		records = append(records, record)
 	}
 	
 	return records, nil
+}
+
+// convertAPIRecordToLibDNS convertit un enregistrement API en structure libdns appropriée
+func (p *Provider) convertAPIRecordToLibDNS(apiRecord struct {
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Value string `json:"value"`
+	TTL   int    `json:"ttl"`
+}) (libdns.Record, error) {
+	ttl := time.Duration(apiRecord.TTL) * time.Second
+	
+	switch strings.ToUpper(apiRecord.Type) {
+	case "A", "AAAA":
+		// Pour les enregistrements A/AAAA, nous utilisons le type Address
+		ip, err := netip.ParseAddr(apiRecord.Value)
+		if err != nil {
+			return nil, fmt.Errorf("adresse IP invalide '%s': %w", apiRecord.Value, err)
+		}
+		address := libdns.Address{
+			Name: apiRecord.Name,
+			TTL:  ttl,
+			IP:   ip,
+		}
+		return address, nil
+	case "TXT":
+		// Pour les enregistrements TXT, nous utilisons le type TXT
+		txt := libdns.TXT{
+			Name: apiRecord.Name,
+			Text: apiRecord.Value,
+			TTL:  ttl,
+		}
+		return txt, nil
+	case "CNAME":
+		// Pour les enregistrements CNAME
+		cname := libdns.CNAME{
+			Name:   apiRecord.Name,
+			Target: apiRecord.Value,
+			TTL:    ttl,
+		}
+		return cname, nil
+	case "MX":
+		// Pour les enregistrements MX, nous devons parser la priorité et la cible
+		// Format attendu: "10 mail.example.com" ou juste "mail.example.com"
+		parts := strings.Fields(apiRecord.Value)
+		var preference uint16 = 10 // Valeur par défaut
+		var target string
+		
+		if len(parts) >= 2 {
+			// Format: "10 mail.example.com"
+			if pref, err := parseUint16(parts[0]); err == nil {
+				preference = pref
+				target = strings.Join(parts[1:], " ")
+			} else {
+				// Format: "mail.example.com" (pas de priorité)
+				target = apiRecord.Value
+			}
+		} else {
+			// Format: "mail.example.com"
+			target = apiRecord.Value
+		}
+		
+		mx := libdns.MX{
+			Name:       apiRecord.Name,
+			Preference: preference,
+			Target:     target,
+			TTL:        ttl,
+		}
+		return mx, nil
+	case "NS":
+		// Pour les enregistrements NS
+		ns := libdns.NS{
+			Name:   apiRecord.Name,
+			Target: apiRecord.Value,
+			TTL:    ttl,
+		}
+		return ns, nil
+	default:
+		// Pour les autres types, nous utilisons RR
+		rr := libdns.RR{
+			Name: apiRecord.Name,
+			Type: apiRecord.Type,
+			Data: apiRecord.Value,
+			TTL:  ttl,
+		}
+		return rr, nil
+	}
+}
+
+// parseUint16 parse une chaîne en uint16
+func parseUint16(s string) (uint16, error) {
+	var result uint16
+	_, err := fmt.Sscanf(s, "%d", &result)
+	return result, err
 }
 
 // convertToSpecificTypes convertit les enregistrements en types spécifiques
@@ -244,9 +245,18 @@ func (p *Provider) convertToSpecificTypes(records []libdns.Record) []libdns.Reco
 		switch strings.ToUpper(rr.Type) {
 		case "A", "AAAA":
 			// Pour les enregistrements A/AAAA, nous utilisons le type Address
-			// Note: Dans un vrai provider, vous devriez parser l'IP correctement
-			// Ici nous utilisons RR comme fallback pour la simplicité
-			result = append(result, rr)
+			ip, err := netip.ParseAddr(rr.Data)
+			if err != nil {
+				// Si l'IP n'est pas valide, on garde RR
+				result = append(result, rr)
+				continue
+			}
+			address := libdns.Address{
+				Name: rr.Name,
+				TTL:  rr.TTL,
+				IP:   ip,
+			}
+			result = append(result, address)
 		case "TXT":
 			txt := libdns.TXT{
 				Name: rr.Name,
@@ -262,10 +272,27 @@ func (p *Provider) convertToSpecificTypes(records []libdns.Record) []libdns.Reco
 			}
 			result = append(result, cname)
 		case "MX":
+			// Parser la priorité et la cible pour MX
+			parts := strings.Fields(rr.Data)
+			var preference uint16 = 10
+			var target string
+			
+			if len(parts) >= 2 {
+				if pref, err := parseUint16(parts[0]); err == nil {
+					preference = pref
+					target = strings.Join(parts[1:], " ")
+				} else {
+					target = rr.Data
+				}
+			} else {
+				target = rr.Data
+			}
+			
 			mx := libdns.MX{
-				Name:   rr.Name,
-				Target: rr.Data,
-				TTL:    rr.TTL,
+				Name:       rr.Name,
+				Preference: preference,
+				Target:     target,
+				TTL:        rr.TTL,
 			}
 			result = append(result, mx)
 		case "NS":
