@@ -17,6 +17,9 @@ import (
 	"github.com/libdns/libdns"
 )
 
+// Version du provider libdns-immosquare
+const Version = "1.0.1"
+
 // TODO: Providers must not require additional provisioning steps by the callers; it
 // should work simply by populating a struct and calling methods on it. If your DNS
 // service requires long-lived state or some extra provisioning step, do it implicitly
