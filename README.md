@@ -1,71 +1,38 @@
-# Immosquare DNS pour [`libdns`](https://github.com/libdns/libdns)
+# Provider DNS générique pour [`libdns`](https://github.com/libdns/libdns)
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/immosquare/libdns-immosquare.svg)](https://pkg.go.dev/github.com/immosquare/libdns-immosquare)
 
-Ce package implémente les [interfaces libdns](https://github.com/libdns/libdns) pour le service DNS immosquare, vous permettant de gérer les enregistrements DNS pour les validations ACME de Caddy.
+Ce package implémente les [interfaces libdns](https://github.com/libdns/libdns) pour n'importe quelle API DNS compatible, vous permettant de gérer les enregistrements DNS pour les validations ACME de Caddy.
 
-**✅ Compatible avec libdns v1.0.0**
+**✅ Compatible avec libdns v1.x**
 
-**📦 Version actuelle : v1.0.1**
 
 ## Installation
 
 ```bash
-go get github.com/immosquare/libdns-immosquare@v1.0.1
+go get github.com/immosquare/libdns-immosquare
 ```
 
 ## Configuration
 
 ### Paramètres du Provider
 
-- `api_token` (string, requis) : Token d'authentification pour l'API immosquare
-- `endpoint` (string, optionnel) : Endpoint de l'API DNS (par défaut: `https://monitoring.immosquare.com/api/dns`)
+- `api_token` (string, requis) : Token d'authentification pour l'API DNS
+- `endpoint` (string, requis) : Endpoint de l'API DNS (ex: `https://votre-api.com/api/dns`)
 
-### Exemple de configuration Caddy
+### Format d'API requis
 
-```json
-{
-  "dns": {
-    "provider": "immosquare",
-    "api_token": "votre_token_ici",
-    "endpoint": "https://immosquare.me:4005/api/dns"
-  }
-}
+Ce provider est compatible avec n'importe quelle API DNS qui expose les endpoints suivants :
+
+```
+GET    /zones/{domain}/records    - Récupérer tous les enregistrements d'une zone
+POST   /zones/{domain}/records    - Créer de nouveaux enregistrements
+PUT    /zones/{domain}/records    - Mettre à jour des enregistrements existants
+DELETE /zones/{domain}/records    - Supprimer des enregistrements
 ```
 
-### Exemple d'utilisation avec Caddy
+Où `{domain}` est le nom de domaine de la zone DNS.
 
-```caddyfile
-example.com {
-    tls {
-        dns immosquare {
-            api_token "votre_token_ici"
-        }
-    }
-}
-```
-
-### Exemple d'utilisation en Go
-
-```go
-package main
-
-import (
-    "fmt"
-    "github.com/immosquare/libdns-immosquare"
-)
-
-func main() {
-    fmt.Printf("Version du provider: %s\n", libdnsimmosquare.Version)
-    
-    provider := &libdnsimmosquare.Provider{
-        APIToken: "your-token-here",
-        Endpoint: "https://monitoring.immosquare.com/api/dns",
-    }
-    
-    // Utiliser le provider...
-}
-```
 
 ## Fonctionnalités
 
@@ -73,8 +40,6 @@ func main() {
 - ✅ Ajout d'enregistrements DNS (`AppendRecords`)
 - ✅ Mise à jour d'enregistrements DNS (`SetRecords`)
 - ✅ Suppression d'enregistrements DNS (`DeleteRecords`)
-- ✅ Support des validations ACME pour Caddy
-- ✅ Gestion automatique des timeouts et erreurs
 - ✅ Support complet de libdns v1.0.0 avec les nouvelles structures de données
 
 ## Types d'enregistrements supportés
@@ -113,6 +78,7 @@ mx := libdns.MX{
     TTL:        600 * time.Second,
 }
 ```
+
 
 ## Utilisation pour les validations ACME
 

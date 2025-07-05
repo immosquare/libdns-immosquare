@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2] - 2025-07-05
+
+### Modifié
+- **Endpoint requis** : Le paramètre `endpoint` est maintenant obligatoire au lieu d'être optionnel
+- **Provider générique** : Le provider est maintenant compatible avec n'importe quelle API DNS respectant le format des routes
+
+
 ## [1.0.1] - 2025-06-30
 
 ### Ajouté

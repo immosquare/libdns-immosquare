@@ -18,7 +18,7 @@ import (
 )
 
 // Version du provider libdns-immosquare
-const Version = "1.0.1"
+const Version = "1.0.2"
 
 // TODO: Providers must not require additional provisioning steps by the callers; it
 // should work simply by populating a struct and calling methods on it. If your DNS
@@ -31,27 +31,30 @@ const Version = "1.0.1"
 type Provider struct {
 	// Token d'authentification pour l'API immosquare
 	APIToken string `json:"api_token,omitempty"`
-	// Endpoint de l'API DNS (par défaut: https://immosquare.me:4005/api/dns)
-	Endpoint string `json:"endpoint,omitempty"`
+	// Endpoint de l'API DNS (requis)
+	Endpoint string `json:"endpoint"`
 	// Client HTTP pour les requêtes API
 	client *http.Client
 }
 
 // initClient initialise le client HTTP si nécessaire
-func (p *Provider) initClient() {
+func (p *Provider) initClient() error {
 	if p.client == nil {
 		p.client = &http.Client{
 			Timeout: 30 * time.Second,
 		}
 	}
 	if p.Endpoint == "" {
-		p.Endpoint = "https://monitoring.immosquare.com/api/dns"
+		return fmt.Errorf("endpoint est requis pour le provider immosquare")
 	}
+	return nil
 }
 
 // makeRequest effectue une requête HTTP vers l'API immosquare
 func (p *Provider) makeRequest(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
-	p.initClient()
+	if err := p.initClient(); err != nil {
+		return nil, err
+	}
 	
 	url := p.Endpoint + path
 	var req *http.Request
