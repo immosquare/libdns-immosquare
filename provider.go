@@ -17,6 +17,11 @@ import (
 // Version of the libdns-immosquare provider
 const Version = "1.0.3"
 
+// defaultMinTTL is the minimum TTL applied to records created via this provider.
+// Prevents issues with TTL 0 (e.g. certmagic ACME challenges) falling back to
+// high zone defaults like 1800s, which slows down DNS propagation.
+const defaultMinTTL = 120 * time.Second
+
 
 type Provider struct {
 	APIToken string `json:"api_token,omitempty"`
@@ -307,21 +312,25 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 	apiRecords := make([]map[string]interface{}, 0, len(records))
 	for _, record := range records {
 		rr := record.RR()
+		ttl := rr.TTL
+		if ttl < defaultMinTTL {
+			ttl = defaultMinTTL
+		}
 		apiRecord := map[string]interface{}{
 			"name": rr.Name,
 			"type": rr.Type,
 			"data": rr.Data, // The API expects "data" for all types
-			"ttl":  int(rr.TTL.Seconds()),
+			"ttl":  int(ttl.Seconds()),
 		}
-		
+
 		apiRecords = append(apiRecords, apiRecord)
 	}
-	
+
 	// Send as an object with a records field
 	requestBody := map[string]interface{}{
 		"records": apiRecords,
 	}
-	
+
 	resp, err := p.makeRequest(ctx, "POST", "/zones/"+zone+"/records", requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("POST request error: %w", err)
@@ -347,21 +356,25 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 	apiRecords := make([]map[string]interface{}, 0, len(records))
 	for _, record := range records {
 		rr := record.RR()
+		ttl := rr.TTL
+		if ttl < defaultMinTTL {
+			ttl = defaultMinTTL
+		}
 		apiRecord := map[string]interface{}{
 			"name": rr.Name,
 			"type": rr.Type,
 			"data": rr.Data, // The API expects "data" for all types
-			"ttl":  int(rr.TTL.Seconds()),
+			"ttl":  int(ttl.Seconds()),
 		}
-		
+
 		apiRecords = append(apiRecords, apiRecord)
 	}
-	
+
 	// Send as an object with a records field
 	requestBody := map[string]interface{}{
 		"records": apiRecords,
 	}
-	
+
 	resp, err := p.makeRequest(ctx, "PUT", "/zones/"+zone+"/records", requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("PUT request error: %w", err)
