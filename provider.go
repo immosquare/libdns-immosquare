@@ -15,7 +15,7 @@ import (
 )
 
 // Version of the libdns-immosquare provider
-const Version = "1.0.3"
+const Version = "1.0.4"
 
 // defaultMinTTL is the minimum TTL applied to records created via this provider.
 // Prevents issues with TTL 0 (e.g. certmagic ACME challenges) falling back to
