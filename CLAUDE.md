@@ -34,3 +34,7 @@ The provider (`provider.go`) implements four libdns interfaces:
 **API Format:**
 - Requests/responses use `{"records": [...]}` wrapper object (falls back to direct array for GET responses)
 - Authentication via Bearer token in Authorization header
+
+**TTL Clamping:**
+- `defaultMinTTL` (120s) is applied as a floor in `AppendRecords` and `SetRecords` — any record with `TTL < 120s` is sent to the API at 120s. `DeleteRecords` is intentionally exempt (uses the caller's TTL as-is).
+- Rationale: records with `TTL: 0` (typical for certmagic ACME challenges) would otherwise inherit the zone default (often 1800s+), slowing DNS propagation.

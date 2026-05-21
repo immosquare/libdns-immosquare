@@ -13,11 +13,16 @@ go get github.com/immosquare/libdns-immosquare
 ## Configuration
 
 ```go
-provider := &immosquare.Provider{
+provider := &libdnsimmosquare.Provider{
     APIToken: "your-api-token",
     Endpoint: "https://your-dns-api.com/api/dns",
 }
 ```
+
+| Field      | Type     | Required | Description                                   |
+| ---------- | -------- | -------- | --------------------------------------------- |
+| `Endpoint` | `string` | yes      | Base URL of the DNS API (no trailing slash)   |
+| `APIToken` | `string` | no       | Sent as `Authorization: Bearer <token>`       |
 
 ## Required API Endpoints
 
@@ -38,6 +43,10 @@ DELETE /zones/{domain}/records
 - **MX** : `libdns.MX` with `Preference` and `Target` fields
 - **NS** : `libdns.NS` with `Target` field
 - **Other types** : `libdns.RR` for unsupported record types
+
+## Minimum TTL
+
+`AppendRecords` and `SetRecords` clamp any TTL below 120 seconds up to 120 seconds. This prevents records created with `TTL: 0` (e.g. certmagic ACME challenges) from inheriting a high zone default like 1800s and slowing down DNS propagation. `DeleteRecords` does not apply the clamp.
 
 ## Test
 
