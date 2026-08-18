@@ -1,3 +1,10 @@
+---
+locale: en
+tags:
+  - app:libdns-immosquare
+  - audience:technique
+---
+
 # libdns-immosquare
 
 [`Go Package`](https://pkg.go.dev/github.com/immosquare/libdns-immosquare)
