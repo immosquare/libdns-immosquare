@@ -7,17 +7,17 @@ tags:
 
 # libdns-immosquare
 
-[`Go Package`](https://pkg.go.dev/github.com/immosquare/libdns-immosquare)
+`libdns-immosquare` is a generic DNS provider for [`libdns`](https://github.com/libdns/libdns) that works with any compatible DNS API. This page covers installing the Go package, configuring the provider, the HTTP endpoints and record types the DNS API has to support, and the minimum TTL applied when records are written. The package reference lives on [`Go Package`](https://pkg.go.dev/github.com/immosquare/libdns-immosquare), and the code is released under the MIT license.
 
-A generic DNS provider for [`libdns`](https://github.com/libdns/libdns) that works with any compatible DNS API.
+## Installing, configuring and testing the libdns-immosquare provider
 
-## Installation
+Install the package with `go get`:
 
 ```bash
 go get github.com/immosquare/libdns-immosquare
 ```
 
-## Configuration
+Build a `Provider` with the base URL of your DNS API and, when that API requires one, an API token:
 
 ```go
 provider := &libdnsimmosquare.Provider{
@@ -26,23 +26,31 @@ provider := &libdnsimmosquare.Provider{
 }
 ```
 
-| Field      | Type     | Required | Description                                   |
-| ---------- | -------- | -------- | --------------------------------------------- |
-| `Endpoint` | `string` | yes      | Base URL of the DNS API (no trailing slash)   |
-| `APIToken` | `string` | no       | Sent as `Authorization: Bearer <token>`       |
+The `Provider` struct carries two fields:
 
-## Required API Endpoints
+| Field      | Type     | Required | Description                                 |
+| ---------- | -------- | -------- | ------------------------------------------- |
+| `Endpoint` | `string` | yes      | Base URL of the DNS API (no trailing slash) |
+| `APIToken` | `string` | no       | Sent as `Authorization: Bearer <token>`     |
+
+Exercise the provider against a live DNS API with the bundled test script:
+
+```bash
+API_TOKEN=your-api-token ENDPOINT=https://your-dns-api.com/api/dns go run test/test_provider.go
+```
+
+## Endpoints and record types the DNS API must support for libdns-immosquare
 
 Your DNS API must expose these endpoints:
 
 ```
 GET    /zones/{domain}/records
-POST   /zones/{domain}/records  
+POST   /zones/{domain}/records
 PUT    /zones/{domain}/records
 DELETE /zones/{domain}/records
 ```
 
-## Supported Record Types
+`libdns-immosquare` supports the following record types:
 
 - **A/AAAA** : `libdns.Address` with `IP` field of type `netip.Addr`
 - **TXT** : `libdns.TXT` with `Text` field
@@ -51,16 +59,6 @@ DELETE /zones/{domain}/records
 - **NS** : `libdns.NS` with `Target` field
 - **Other types** : `libdns.RR` for unsupported record types
 
-## Minimum TTL
+## Minimum TTL of 120 seconds in libdns-immosquare
 
 `AppendRecords` and `SetRecords` clamp any TTL below 120 seconds up to 120 seconds. This prevents records created with `TTL: 0` (e.g. certmagic ACME challenges) from inheriting a high zone default like 1800s and slowing down DNS propagation. `DeleteRecords` does not apply the clamp.
-
-## Test
-
-```bash
-API_TOKEN=your-api-token ENDPOINT=https://your-dns-api.com/api/dns go run test/test_provider.go
-```
-
-## License
-
-MIT
